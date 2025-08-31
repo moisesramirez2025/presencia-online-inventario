@@ -75,6 +75,7 @@ async function handleUpdate(e) {
           {items.map(p => (
             <div key={p._id} className="border rounded p-3 flex items-center justify-between">
               <div className="text-sm">
+                <div className=""> <img src={p.images} alt="" /> </div>
                 <div className="font-semibold">{p.title}</div>
                 <div className="text-gray-600">${p.price?.toLocaleString()} — {p.isActive ? 'Activo' : 'Inactivo'} — Disponibles:{p.cant?.toLocaleString()}</div>
               </div>

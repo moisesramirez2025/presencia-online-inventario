@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 const quoteSchema = new mongoose.Schema({
-  customerName: { type: String, required: true, trim: true },
+  customerName: { type: String, required: false, trim: true },
   customerEmail: { type: String, trim: true },
   customerPhone: { type: String, trim: true },
   message: { type: String, trim: true },

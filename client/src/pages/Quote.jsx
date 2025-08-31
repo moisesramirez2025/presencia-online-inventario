@@ -20,7 +20,10 @@ export default function Quote() {
   }
   async function submit(e) {
     e.preventDefault();
-    const res = await api.post('/quotes', form);
+    const data = { ...form};  //por si no hay producto seleccionado no se envia el campo vacio
+    if (!data.product) delete data.product;
+
+    const res = await api.post('/quotes', data);
     alert(res.data.message);
     setForm({ customerName: '', customerEmail: '', customerPhone: '', message: '', product: '', quantity: 1 });
   }
