@@ -4,6 +4,47 @@ import { api } from '../api';
 function ProductsTab() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ title: '', description: '', price: 0, images: '', category: '' });
+  
+  // Ventana de actualizar producto
+  const [showModal, setShowModal] = useState(false); // Para mostrar/ocultar el modal
+  const [selectedProduct, setSelectedProduct] = useState(null); // Para guardar el producto a editar
+  const [editForm, setEditForm] = useState({ title: '', description: '', price: 0, images: '', category: '', cant: 0 }); // Para el formulario de edición
+  
+  
+
+
+
+
+
+  // funciones ventana actualizar
+function onEditChange(e) {
+  const { name, value } = e.target;
+  setEditForm(f => ({ ...f, [name]: value }));
+  
+}
+async function handleUpdate(e) {
+  e.preventDefault();
+  if (!selectedProduct) return;
+  await api.put(`/products/admin/${selectedProduct._id}`, {
+    ...editForm,
+    price: Number(editForm.price),
+    images: editForm.images.split(',').map(s => s.trim()).filter(Boolean)
+  });
+  setShowModal(false);
+  setSelectedProduct(null);
+  load(); // Recargar la lista de productos
+}
+
+
+
+
+
+
+
+
+
+
+  
   function load() { api.get('/products/admin').then(res => setItems(res.data)); }
   useEffect(load, []);
   function onChange(e) { const { name, value } = e.target; setForm(f => ({ ...f, [name]: value })); }
@@ -38,6 +79,55 @@ function ProductsTab() {
                 <div className="text-gray-600">${p.price?.toLocaleString()} — {p.isActive ? 'Activo' : 'Inactivo'} — Disponibles:{p.cant?.toLocaleString()}</div>
               </div>
               <div className="flex gap-2">
+
+              {/* abrir ventana de actualizar */}
+
+                <button className="btn bg-blue-600" onClick={() => {
+                  setSelectedProduct(p);
+                  setEditForm({
+                    title: p.title,
+                    description: p.description,
+                    price: p.price,
+                    images: p.images.join(', '),
+                    category: p.category,
+                    cant: p.cant
+                  });
+                  setShowModal(true);
+                }}>Editar</button>
+                
+                {showModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+    <div className="bg-white p-6 rounded shadow-lg min-w-[320px] relative">
+      <button
+        className="absolute top-2 right-2 text-xl"
+        onClick={() => setShowModal(false)}
+      >
+        &times;
+      </button>
+      <h2 className="text-lg font-bold mb-2">Editar producto</h2>
+      <form onSubmit={handleUpdate}>
+        <input className="input mb-2" name="title" placeholder="Título" value={editForm.title} onChange={onEditChange} required />
+        <textarea className="input mb-2 h-20" name="description" placeholder="Descripción" value={editForm.description} onChange={onEditChange} />
+        <input className="input mb-2" name="price" type="number" step="0.01" placeholder="Precio" value={editForm.price} onChange={onEditChange} required />
+        <input className="input mb-2" name="images" placeholder="URLs de imágenes (coma separadas)" value={editForm.images} onChange={onEditChange} />
+        <input className="input mb-2" name="category" placeholder="Categoría" value={editForm.category} onChange={onEditChange} />
+        <input className="input mb-2" name="cant" type="number" step="1" placeholder="Cantidad" value={editForm.cant} onChange={onEditChange} />
+        <div className="flex gap-2 mt-3">
+          <button className="btn" type="submit">Guardar cambios</button>
+          <button className="btn bg-gray-400" type="button" onClick={() => setShowModal(false)}>Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
+
+
+
+
+
+
+
+
                 <button className="btn" onClick={() => toggleActive(p)}>{p.isActive ? 'Desactivar' : 'Activar'}</button>
                 <button className="btn bg-red-600" onClick={() => remove(p._id)}>Eliminar</button>
               </div>
@@ -93,6 +183,15 @@ function QuotesTab() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
 
 function SettingsTab() {
   const [form, setForm] = useState({ bannerImageUrl: '', heroTitle: '', heroSubtitle: '' });
