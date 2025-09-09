@@ -1,31 +1,48 @@
+// client/src/pages/AdminLogin.jsx
 import { useState } from 'react';
-import { api } from '../api';
 import { useNavigate } from 'react-router-dom';
+import { api } from '../api';
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('admin@tienda.com');
+  const [email, setEmail] = useState('admin@ejemplo.com');
   const [password, setPassword] = useState('admin123');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   async function submit(e) {
     e.preventDefault();
     try {
-      const { data } = await api.post('/auth/login', { email, password });
+      setLoading(true);
+      const { data } = await api.post('/auth/admin/login', { email, password });
       localStorage.setItem('token', data.token);
-      navigate('/admin');
-    } catch (e) {
-      alert(e.response?.data?.message || 'Error de login');
+      localStorage.setItem('businessId', data.business.id);
+      localStorage.setItem('businessName', data.business.name);
+      localStorage.setItem('adminName', data.admin.name);
+      navigate('/inventario');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error de login');
+    } finally {
+      setLoading(false);
     }
   }
+
   return (
-    <div className="container py-10">
-      <h1 className="text-2xl font-semibold mb-4">Ingreso administrador</h1>
-      <form onSubmit={submit} className="max-w-md card">
-        <label className="label">Correo</label>
-        <input className="input mb-3" value={email} onChange={e => setEmail(e.target.value)} />
-        <label className="label">Contraseña</label>
-        <input className="input mb-4" type="password" value={password} onChange={e => setPassword(e.target.value)} />
-        <button className="btn w-full">Entrar</button>
+    <div className="max-w-sm mx-auto p-6">
+      <h2 className="text-xl font-semibold mb-4">Iniciar sesión (Administrador)</h2>
+      <form onSubmit={submit} className="space-y-3">
+        <div>
+          <label className="block text-sm mb-1">Email</label>
+          <input className="w-full border rounded px-3 py-2"
+                 value={email} onChange={e=>setEmail(e.target.value)} type="email" required/>
+        </div>
+        <div>
+          <label className="block text-sm mb-1">Contraseña</label>
+          <input className="w-full border rounded px-3 py-2"
+                 value={password} onChange={e=>setPassword(e.target.value)} type="password" required/>
+        </div>
+        <button className="w-full bg-black text-white rounded py-2" disabled={loading}>
+          {loading ? 'Entrando…' : 'Entrar'}
+        </button>
       </form>
     </div>
   );

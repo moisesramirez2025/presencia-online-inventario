@@ -5,6 +5,7 @@ export const createPublic = async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
   const quote = await Quote.create(req.body);
+
   res.status(201).json({ message: 'Cotización enviada', quoteId: quote._id });
 };
 

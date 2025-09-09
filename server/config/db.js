@@ -8,3 +8,4 @@ export async function connectDB(uri) {
     process.exit(1);
   }
 }
+

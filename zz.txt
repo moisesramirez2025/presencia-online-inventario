@@ -1,0 +1,911 @@
+// ==== ARCHIVO: server/package.json ====
+
+{
+  "name": "carpinteria-vitrina-api",
+  "version": "1.0.0",
+  "description": "API MVC para vitrina de carpinter\u00eda",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.5.1",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
+
+
+// ==== ARCHIVO: server/server.js ====
+
+import 'dotenv/config';
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import morgan from 'morgan';
+import { connectDB } from './config/db.js';
+import authRoutes from './routes/authRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import quoteRoutes from './routes/quoteRoutes.js';
+import settingRoutes from './routes/settingRoutes.js';
+import adminAuthRoutes from './routes/adminAuthRoutes.js';
+// import Business from './models/Business.js';
+import ventasRoutes from "./routes/ventas.routes.js";
+
+
+import { notFound, errorHandler } from './middleware/error.js';
+
+const app = express();
+app.use(helmet());
+// app.use(cors({ origin: process.env.CLIENT_ORIGIN, credentials: true }));
+app.use(cors({
+  origin: ["http://localhost:5173", "http://localhost:4000"],
+  credentials: true
+}));
+app.use(express.json({ limit: '1mb' }));
+app.use(morgan('dev'));
+
+app.use('/api/auth', authRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/quotes', quoteRoutes);
+app.use('/api/settings', settingRoutes);
+app.use('/api/auth/admin', adminAuthRoutes);
+app.use('/api/auth/admin', adminAuthRoutes);
+app.use("/api", ventasRoutes);
+
+app.use(notFound);
+app.use(errorHandler);
+
+const PORT = process.env.PORT || 4000;
+connectDB(process.env.MONGODB_URI).then(() => {
+  app.listen(PORT, () => console.log(`🚀 API lista en http://localhost:${PORT}`));
+});
+
+
+// ==== ARCHIVO: server/routes/adminAuthRoutes.js ====
+
+import { Router } from 'express';
+import { adminLogin, registerOwner } from '../controllers/adminAuthController.js';
+
+const router = Router();
+
+router.post('/login', adminLogin);
+router.post('/register-owner', registerOwner);
+
+export default router;
+
+
+
+// ==== ARCHIVO: server/routes/authRoutes.js ====
+
+import { Router } from 'express';
+import { body } from 'express-validator';
+import { login } from '../controllers/authController.js';
+const router = Router();
+router.post('/login', body('email').isEmail(), body('password').isLength({ min: 6 }), login);
+export default router;
+
+
+
+
+// ==== ARCHIVO: server/routes/productRoutes.js ====
+
+
+import { Router } from 'express';
+import { body } from 'express-validator';
+import { authRequired } from '../middleware/auth.js';
+import { listPublic, listAdmin, create, update, remove } from '../controllers/productController.js';
+
+const router = Router();
+
+router.get('/', listPublic);
+
+// 👇 Protege TODAS las admin
+router.get('/admin', authRequired, listAdmin);
+router.post(
+  '/admin',
+  authRequired,
+  body('title').notEmpty().withMessage('title requerido'),
+  body('price').isNumeric().withMessage('price debe ser número'),
+  create
+);
+router.put('/admin/:id', authRequired, update);
+router.delete('/admin/:id', authRequired, remove);
+
+export default router;
+
+
+// ==== ARCHIVO: server/routes/quoteRoutes.js ====
+
+
+import { Router } from 'express';
+import { body } from 'express-validator';
+import { authRequired } from '../middleware/auth.js';
+import { createPublic, listAdmin, updateStatus } from '../controllers/quoteController.js';
+
+const router = Router();
+router.post('/', body('customerName').notEmpty(), body('customerEmail').optional().isEmail(), body('customerPhone').optional().isString(), body('quantity').optional().isInt({ min: 1 }), createPublic);
+router.get('/admin', authRequired, listAdmin);
+router.put('/admin/:id/status', authRequired, body('status').isIn(['nueva','en_proceso','cerrada']), updateStatus);
+export default router;
+
+
+// ==== ARCHIVO: server/routes/settingRoutes.js ====
+import { Router } from 'express';
+import { body } from 'express-validator';
+import { authRequired } from '../middleware/auth.js';
+import { getPublic, updateAdmin } from '../controllers/settingController.js';
+
+const router = Router();
+router.get('/', getPublic);
+router.put('/admin', authRequired, body('bannerImageUrl').optional().isString(), body('heroTitle').optional().isString(), body('heroSubtitle').optional().isString(), updateAdmin);
+export default router;
+
+
+// ==== ARCHIVO: server/routes/ventas.routes.js ====
+import express from "express";
+import { venderProducto, listarVentas } from "../controllers/ventas.controller.js";
+import { authRequired } from "../middleware/auth.js";
+
+const router = express.Router();
+
+router.post("/ventas/:productId", authRequired, venderProducto);
+router.get("/ventas", authRequired, listarVentas);
+
+export default router;
+
+_______________________________________________________________________________________________________________
+Controllers/
+
+// ==== ARCHIVO: server/controllers/adminAuthController.js ====
+
+import jwt from 'jsonwebtoken';
+import AdminUser from '../models/AdminUser.js';
+import Business from '../models/Business.js';
+
+// Firma token 7 días
+function signToken({ id, email, role, business }) {
+  return jwt.sign({ id, email, role, business }, process.env.JWT_SECRET, { expiresIn: '1h' });
+}
+
+// POST /api/auth/admin/login
+export const adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) return res.status(400).json({ message: 'Email y contraseña requeridos' });
+
+    let admin = await AdminUser.findOne({ email }).populate('business');
+    if (!admin) return res.status(400).json({ message: 'Credenciales inválidas' });
+
+    const ok = await admin.comparePassword(password);
+    if (!ok) return res.status(400).json({ message: 'Credenciales inválidas' });
+
+    const businessPayload = admin.business && admin.business._id
+      ? { id: admin.business._id, name: admin.business.name || '' }
+      : admin.business
+        ? { id: admin.business, name: '' }
+        : null;
+
+    if (!businessPayload) {
+      return res.status(400).json({ message: 'El administrador no tiene negocio asignado.' });
+    }
+
+    const token = signToken({
+      id: admin._id,
+      email: admin.email,
+      role: admin.role,
+      business: businessPayload.id
+    });
+
+    return res.json({
+      token,
+      admin: { id: admin._id, name: admin.name, email: admin.email, role: admin.role },
+      business: businessPayload
+    });
+  } catch (e) {
+    console.error('[adminLogin] error:', e);
+    return res.status(500).json({ message: 'Error en login' });
+  }
+};
+
+// POST /api/auth/admin/register-owner
+// Crea un negocio + primer admin (owner)
+export const registerOwner = async (req, res) => {
+  try {
+    const { businessName, contactEmail, phone, address, name, email, password } = req.body || {};
+    if (!businessName || !name || !email || !password) {
+      return res.status(400).json({ message: 'Faltan campos obligatorios' });
+    }
+
+    const exists = await AdminUser.findOne({ email });
+    if (exists) return res.status(400).json({ message: 'Ya existe un admin con ese correo' });
+
+    const biz = await Business.create({ name: businessName, contactEmail, phone, address });
+
+    const admin = await AdminUser.create({
+      name,
+      email,
+      password,          // se hashea en pre-save
+      business: biz._id,
+      role: 'owner'
+    });
+
+    const token = signToken({
+      id: admin._id,
+      email: admin.email,
+      role: admin.role,
+      business: biz._id
+    });
+
+    return res.status(201).json({
+      token,
+      admin: { id: admin._id, name: admin.name, email: admin.email, role: admin.role },
+      business: { id: biz._id, name: biz.name }
+    });
+  } catch (e) {
+    console.error('[registerOwner] error:', e);
+    return res.status(500).json({ message: 'Error registrando negocio' });
+  }
+};
+
+
+
+
+// ==== ARCHIVO: server/controllers/authController.js ====
+
+import jwt from 'jsonwebtoken';
+
+export const login = async (req, res) => {
+  // ... busca user, valida password ...
+  const token = jwt.sign(
+    { id: user._id, businessId: user.business }, // 👈 mete businessId aquí
+    process.env.JWT_SECRET,
+    { expiresIn: '1d' }
+  );
+  res.json({
+    token,
+    user: { id: user._id, name: user.name, businessId: user.business } // opcional para front
+  });
+};
+
+
+
+// ==== ARCHIVO: server/controllers/productController.js ====
+
+// controllers/product.controller.js
+import { validationResult } from 'express-validator';
+
+import Product from '../models/Product.js';     // ajusta la ruta a tu modelo
+import Business from '../models/Business.js';   // ajusta la ruta a tu modelo
+
+/**
+ * LISTA PÚBLICA (vitrina)
+ * - Filtra por activos, q y category como antes.
+ * - Opcional: ?business=ID para limitar a un negocio específico.
+ */
+export const listPublic = async (req, res) => {
+  try {
+    const { q = '', category, business } = req.query;
+    const filter = {
+      isActive: true,
+      ...(q ? { title: { $regex: q, $options: 'i' } } : {}),
+      ...(category ? { category } : {}),
+      ...(business ? { business } : {}) // <- nuevo, opcional
+    };
+    const items = await Product.find(filter).sort({ createdAt: -1 });
+    res.json(items);
+  } catch (e) {
+    res.status(500).json({ message: 'Error listando productos públicos' });
+  }
+};
+
+/**
+ * LISTA ADMIN (multi-tenant)
+ * - Siempre restringe al negocio del usuario autenticado.
+ */
+export const listAdmin = async (req, res) => {
+  try {
+    const items = await Product.find({ business: req.user.businessId })
+      .sort({ createdAt: -1 });
+    res.json(items);
+  } catch (e) {
+    res.status(500).json({ message: 'Error listando productos' });
+  }
+};
+
+/**
+ * CREAR (multi-tenant)
+ * - Valida con express-validator como antes.
+ * - Ignora cualquier business en el body y usa el del token.
+ */
+export async function create(req, res) {
+  // Validaciones
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ message: 'Validación', errors: errors.array() });
+  }
+
+  try {
+    // 1) Resolver negocio desde el user del token
+    const bizId = req.user?.businessId; // ← ya llega por el middleware (businessId o business)
+    if (!bizId) {
+      return res.status(401).json({ message: 'No se encontró la información del negocio. Asegúrate de estar autenticado.' });
+    }
+
+    const business = await Business.findById(bizId);
+    if (!business) {
+      return res.status(401).json({ message: 'No se encontró la información del negocio. Asegúrate de estar autenticado.' });
+    }
+
+    // 2) Crear producto (casteos numéricos)
+    const { title, description, price, images = [], category, cant } = req.body;
+
+    const product = await Product.create({
+      title,
+      description,
+      price: Number(price),
+      images,
+      category,
+      cant: Number(cant),
+      business: business._id, // ← usa el id del negocio resuelto
+      isActive: true,
+    });
+
+    return res.status(201).json(product);
+  } catch (err) {
+    console.error('create product error:', err);
+    return res.status(500).json({ message: 'Error interno creando producto' });
+  }
+}
+/**
+ * ACTUALIZAR (multi-tenant)
+ * - Solo actualiza si el producto pertenece al negocio del usuario.
+ * - Mantiene runValidators para respetar tu schema.
+ */
+export const update = async (req, res) => {
+  try {
+    const item = await Product.findOneAndUpdate(
+      { _id: req.params.id, business: req.user.businessId }, // <- chequeo de propiedad
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!item) return res.status(404).json({ message: 'No encontrado' });
+    res.json(item);
+  } catch (e) {
+    if (e.name === 'ValidationError') {
+      return res.status(400).json({
+        message: 'Validación fallida',
+        errors: Object.fromEntries(Object.entries(e.errors || {}).map(([k, v]) => [k, v.message]))
+      });
+    }
+    res.status(500).json({ message: 'Error actualizando producto' });
+  }
+};
+
+/**
+ * ELIMINAR (multi-tenant)
+ * - Solo elimina si pertenece al negocio del usuario.
+ */
+export const remove = async (req, res) => {
+  try {
+    const ok = await Product.findOneAndDelete({
+      _id: req.params.id,
+      business: req.user.businessId, // <- chequeo de propiedad
+    });
+    if (!ok) return res.status(404).json({ message: 'No encontrado' });
+    res.json({ message: 'Eliminado' });
+  } catch (e) {
+    res.status(500).json({ message: 'Error eliminando producto' });
+  }
+};
+
+
+
+
+
+// ==== ARCHIVO: server/controllers/quoteController.js ====
+import { validationResult } from 'express-validator';
+import Quote from '../models/Quote.js';
+
+export const createPublic = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+  const quote = await Quote.create(req.body);
+
+  res.status(201).json({ message: 'Cotización enviada', quoteId: quote._id });
+};
+
+export const listAdmin = async (req, res) => {
+  const { status } = req.query;
+  const filter = status ? { status } : {};
+  const items = await Quote.find(filter).populate('product').sort({ createdAt: -1 });
+  res.json(items);
+};
+
+export const updateStatus = async (req, res) => {
+  const { status } = req.body;
+  const q = await Quote.findByIdAndUpdate(req.params.id, { status }, { new: true });
+  if (!q) return res.status(404).json({ message: 'No encontrado' });
+  res.json(q);
+};
+
+
+
+
+
+// ==== ARCHIVO: server/controllers/settingController.js ====
+import { validationResult } from 'express-validator';
+import Setting from '../models/Setting.js';
+
+async function getSingleton() {
+  let s = await Setting.findOne();
+  if (!s) s = await Setting.create({});
+  return s;
+}
+
+export const getPublic = async (req, res) => {
+  const s = await getSingleton();
+  res.json({ bannerImageUrl: s.bannerImageUrl, heroTitle: s.heroTitle, heroSubtitle: s.heroSubtitle });
+};
+
+export const updateAdmin = async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+  const s = await getSingleton();
+  Object.assign(s, req.body);
+  await s.save();
+  res.json(s);
+};
+
+
+
+
+// ==== ARCHIVO: server/controllers/ventas.controller.js ====
+
+import mongoose from "mongoose";
+import Product from "../models/Product.js";
+import HistorialVenta from "../models/HistorialVenta.js";
+
+function requireBusinessId(req, res) {
+  const businessId = req.user?.businessId;
+  if (!businessId) {
+    res.status(403).json({ message: "Tu usuario no está asociado a un negocio (businessId)." });
+    return null;
+  }
+  return businessId;
+}
+
+async function registrarVentaHistorial({ negocio, productDoc, cantidad, precio_unitario, ganancia }, session) {
+  const total_venta = cantidad * precio_unitario;
+
+  const [venta] = await HistorialVenta.create([{
+    fecha: new Date(),
+    negocio,
+    productoId: productDoc._id,
+    productoNombre: productDoc.title || productDoc.name || "Producto",
+    cantidad,
+    precio_unitario,
+    total_venta,
+    ganancia
+  }], { session });
+
+  return venta;
+}
+
+// POST /api/ventas/:productId
+export const venderProducto = async (req, res) => {
+  const negocio = requireBusinessId(req, res);
+  if (!negocio) return;
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  try {
+    const { productId } = req.params;
+    const { cantidad, precio_unitario, ganancia } = req.body;
+
+    if (!cantidad || !precio_unitario || typeof ganancia !== "number") {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Faltan campos: cantidad, precio_unitario, ganancia" });
+    }
+
+    // 👇 MUY IMPORTANTE: buscar el producto del mismo negocio
+    // Ajusta el campo de negocio de tu Product: negocio / business / businessId
+    const product = await Product.findOne({ _id: productId, negocio }).session(session);
+    if (!product) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Producto no encontrado en tu negocio" });
+    }
+
+    const stockActual = Number(product.cant ?? product.stock ?? 0);
+    if (stockActual < cantidad) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Stock insuficiente" });
+    }
+
+    // Actualizar stock
+    if (typeof product.cant === "number") product.cant = stockActual - cantidad;
+    else if (typeof product.stock === "number") product.stock = stockActual - cantidad;
+    else {
+      await session.abortTransaction();
+      return res.status(500).json({ message: "Campo de stock no definido (cant/stock) en Product" });
+    }
+    await product.save({ session });
+
+    // Registrar venta
+    const venta = await registrarVentaHistorial({
+      negocio,
+      productDoc: product,
+      cantidad,
+      precio_unitario,
+      ganancia
+    }, session);
+
+    await session.commitTransaction();
+    res.status(201).json({
+      message: "Venta registrada y stock actualizado",
+      venta,
+      producto: { id: product._id, cant: product.cant ?? product.stock }
+    });
+  } catch (err) {
+    console.error(err);
+    await session.abortTransaction();
+    res.status(500).json({ message: "Error al procesar la venta" });
+  } finally {
+    session.endSession();
+  }
+};
+
+
+
+// GET /api/ventas
+export const listarVentas = async (req, res) => {
+  try {
+    const negocio = req.user?.businessId;
+    if (!negocio) {
+      return res.status(403).json({ message: "Tu usuario no está asociado a un negocio" });
+    }
+
+    const { from, to, q, page = 1, limit = 10 } = req.query;
+    const filter = { negocio };
+
+    if (from || to) {
+      filter.fecha = {};
+      if (from) filter.fecha.$gte = new Date(from);
+      if (to)   filter.fecha.$lte = new Date(to);
+    }
+    if (q) filter.productoNombre = { $regex: q, $options: "i" };
+
+    const skip = (Number(page) - 1) * Number(limit);
+    const [items, total] = await Promise.all([
+      HistorialVenta.find(filter).sort({ fecha: -1 }).skip(skip).limit(Number(limit)),
+      HistorialVenta.countDocuments(filter),
+    ]);
+
+    res.json({ items, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error al listar ventas" });
+  }
+};
+
+
+
+
+_______________________________________________________________________________________________________________
+Models
+
+// ==== ARCHIVO: server/models/aaaa.js====
+
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+
+const adminSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  email: { type: String, unique: true, required: true, lowercase: true, trim: true },
+  password: { type: String, required: true, minlength: 6 }
+}, { timestamps: true });
+
+adminSchema.pre('save', async function (next) {
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+adminSchema.methods.comparePassword = function (plain) {
+  return bcrypt.compare(plain, this.password);
+};
+
+export default mongoose.model('AdminUser', adminSchema);
+
+
+
+// ==== ARCHIVO: server/models/AdminUser.js ====
+import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+
+const adminUserSchema = new mongoose.Schema({
+  name:     { type: String, required: true, trim: true },
+  email:    { type: String, required: true, unique: true, lowercase: true, trim: true, index: true },
+  password: { type: String, required: true, minlength: 6 },
+  business: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true },
+  role:     { type: String, enum: ['owner','staff'], default: 'owner', index: true }
+}, { timestamps: true });
+
+adminUserSchema.pre('save', async function(next){
+  if (!this.isModified('password')) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+adminUserSchema.methods.comparePassword = function (plain) {
+  return bcrypt.compare(plain, this.password);
+};
+
+export default mongoose.model('AdminUser', adminUserSchema);
+
+
+
+
+// ==== ARCHIVO: server/models/Business.js ====
+import mongoose from 'mongoose';
+
+const businessSchema = new mongoose.Schema({
+  name: { type: String, required: true, trim: true },
+  contactEmail: { type: String, trim: true, lowercase: true },
+  phone: { type: String, trim: true },
+  address: { type: String, trim: true }
+}, { timestamps: true });
+
+export default mongoose.model('Business', businessSchema);
+
+
+
+
+// ==== ARCHIVO:server/models/HistorialVenta.js ====
+import mongoose from "mongoose";
+
+const historialVentaSchema = new mongoose.Schema({
+  fecha: { type: Date, default: Date.now },
+  negocio: { type: mongoose.Schema.Types.ObjectId, ref: "Business", required: true }, // ← clave
+  productoId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+  productoNombre: { type: String, required: true },
+  cantidad: { type: Number, required: true, min: 1 },
+  precio_unitario: { type: Number, required: true, min: 0 },
+  total_venta: { type: Number, required: true, min: 0 },
+  ganancia: { type: Number, required: true }
+}, { timestamps: true });
+
+// Índices útiles para filtrar por negocio/fecha
+historialVentaSchema.index({ negocio: 1, fecha: -1 });
+historialVentaSchema.index({ negocio: 1, productoNombre: 1, fecha: -1 });
+
+export default mongoose.model("HistorialVenta", historialVentaSchema);
+
+
+
+
+// ==== ARCHIVO:server/models/Product.js ====
+
+const productSchema = new mongoose.Schema({
+  business: { type: mongoose.Schema.Types.ObjectId, ref: 'Business', required: true },
+
+  title: { type: String, required: true, trim: true },
+  description: { type: String, trim: true },
+  price: { type: Number, required: true, min: 0 },
+  images: [{ type: String }],
+  category: { type: String, trim: true },
+  cant: { type: Number, default: 0, min: 0 },
+  isActive: { type: Boolean, default: true }
+}, { timestamps: true });
+export default mongoose.model('Product', productSchema);
+
+
+
+// ==== ARCHIVO: server/models/Quote.js ====
+import mongoose from 'mongoose';
+const quoteSchema = new mongoose.Schema({
+  
+  customerName: { type: String, required: false, trim: true },
+  customerEmail: { type: String, trim: true },
+  customerPhone: { type: String, trim: true },
+  message: { type: String, trim: true },
+  product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product' },
+  quantity: { type: Number, default: 1, min: 1 },
+  status: { type: String, enum: ['nueva', 'en_proceso', 'cerrada'], default: 'nueva' }
+}, { timestamps: true });
+export default mongoose.model('Quote', quoteSchema);
+
+
+
+
+// ==== ARCHIVO: server/models/Setting.js ====
+
+import mongoose from 'mongoose';
+const settingSchema = new mongoose.Schema({
+  bannerImageUrl: { type: String, default: '' },
+  heroTitle: { type: String, default: 'Hecho a tu medida' },
+  heroSubtitle: { type: String, default: 'Muebles a medida con calidad artesanal' }
+}, { timestamps: true });
+export default mongoose.model('Setting', settingSchema);
+
+
+
+
+________________________________________________________________________________________________
+Middleware
+
+
+
+// ==== ARCHIVO:server/middleware/auth.js ====
+
+// middlewares/auth.js
+import jwt from 'jsonwebtoken';
+
+/**
+ * Acepta tokens que traigan businessId o business.
+ * Conserva id, role y businessId en req.user.
+ */
+export function authRequired(req, res, next) {
+  const h = req.headers.authorization || '';
+  const token = h.startsWith('Bearer ') ? h.slice(7) : null;
+  if (!token) return res.status(401).json({ message: 'No token' });
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET /*, { algorithms: ['HS256'] } */);
+
+    // ← CLAVE: considerar ambos nombres de claim
+    const businessId = payload.businessId || payload.business || null;
+
+    req.user = {
+      id: payload.id,
+      role: payload.role,           // úsalo con adminOnly
+      businessId,                   // usarás esto en controlador
+    };
+
+    next();
+  } catch (e) {
+    return res.status(401).json({ message: 'Token inválido' });
+  }
+}
+
+/**
+ * Requiere rol de administración. Acepta owner, staff, admin (como ya tenías).
+ */
+export function adminOnly(req, res, next) {
+  if (!['owner', 'staff', 'admin'].includes(req.user?.role)) {
+    return res.status(403).json({ message: 'Solo administradores' });
+  }
+  next();
+}
+
+
+
+
+
+
+// ==== ARCHIVO: server/middleware/error.js ====
+
+export function notFound(req, res) {
+  res.status(404).json({ message: 'Ruta no encontrada' });
+}
+export function errorHandler(err, req, res, next) {
+  console.error('error'/*porsiacaso */, err);
+  res.status(err.status || 500).json({ message: err.message || 'Error servidor' });
+}
+
+//________________________________________________________________________________________________
+//Config
+
+
+
+// ==== ARCHIVO: server/config/db.js ====
+import mongoose from 'mongoose';
+export async function connectDB(uri) {
+  try {
+    await mongoose.connect(uri);
+    console.log('MongoDB conectado');
+  } catch (err) {
+    console.error('Error al conectar MongoDB:', err.message);
+    process.exit(1);
+  }
+}
+
+
+
+
+//________________________________________________________________________________________________
+//scripts
+// ==== ARCHIVO: server/scripts/assignBusinessToAdmin.js.js ====
+
+
+// server/scripts/assignBusinessToAdmin.js
+import 'dotenv/config';
+import mongoose from 'mongoose';
+import Business from '../models/Business.js';
+import AdminUser from '../models/AdminUser.js';
+
+async function run() {
+  try {
+    if (!process.env.MONGODB_URI) {
+      console.error('Falta MONGODB_URI en server/.env');
+      process.exit(1);
+    }
+
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('Conectado a Mongo para migración');
+
+    // 1) crea (o reutiliza) un negocio
+    let biz = await Business.findOne({ name: 'Carpintería Ejemplo' });
+    if (!biz) {
+      biz = await Business.create({
+        name: 'Carpintería Ejemplo',
+        contactEmail: 'contacto@ejemplo.com'
+      });
+      console.log('Negocio creado:', biz._id.toString());
+    } else {
+      console.log('Negocio reutilizado:', biz._id.toString());
+    }
+
+    // 2) asigna el negocio a tu admin (ajusta el email si usas otro)
+    const email = 'admin@ejemplo.com';
+    const admin = await AdminUser.findOne({ email });
+    if (!admin) {
+      console.error(`No existe admin con el email ${email}. Crea uno o cambia el email del script.`);
+      process.exit(1);
+    }
+
+    admin.business = biz._id;
+    await admin.save();
+    console.log(`OK: asignado business ${biz._id.toString()} a admin ${admin.email}`);
+  } catch (e) {
+    console.error('Error en migración:', e);
+    process.exit(1);
+  } finally {
+    await mongoose.disconnect();
+  }
+}
+
+run();
+
+
+// ==== ARCHIVO: server/scripts/seedAdmin.js ====
+
+import 'dotenv/config';
+import { connectDB } from '../config/db.js';
+import AdminUser from '../models/AdminUser.js';
+
+async function main() {
+  await connectDB(process.env.MONGODB_URI);
+  const exists = await AdminUser.findOne({ email: process.env.ADMIN_EMAIL });
+  if (exists) {
+    console.log('ℹAdmin ya existe:', exists.email);
+    process.exit(0);
+  }
+  const user = await AdminUser.create({
+    name: process.env.ADMIN_NAME,
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD
+  });
+  console.log('Admin creado:', user.email);
+  process.exit(0);
+}
+main().catch(err => { console.error(err); process.exit(1); });
+
+
+
+
+
+
+Notas:                si puedes quiero un codigo funcional pero limpio con buenas practicas, soy estudiante y aun no soy muy abanzado en el codigo quiero poder leer y expandir de forma facil, puedes agregar en partes que creas que es muy avazado un comendario con una explicacion

@@ -1,12 +1,35 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api } from '../api.js';
 import { Link } from 'react-router-dom';
+// import '../css/app.css';
 
 export default function Landing() {
   const [setting, setSetting] = useState(null);
+
+// aqui
+   const [reversed, setReversed] = useState(false);
+
+  const toggleOrder = () => {
+    setReversed(!reversed);
+  };
+// asta aqui
+
+
+
   useEffect(() => { api.get('/settings').then(res => setSetting(res.data)); }, []);
   return (
     <>
+    {/* aqui */}
+    <div className={`grid-container ${reversed ? 'reversed-order' : ''}`}>
+        <div className="box box1">Caja 1</div>
+        <div className="box box2">Caja 2</div>
+        <div className="box box3">Caja 3</div>
+      </div>
+      <button onClick={toggleOrder}>Cambiar Orden</button>
+      
+      {/* asta aqui */}
+
+
       <section className="relative">
         <img
           src={setting?.bannerImageUrl || 'https://images.unsplash.com/photo-1519710164239-da123dc03ef4?q=80&w=1600&auto=format&fit=crop'}

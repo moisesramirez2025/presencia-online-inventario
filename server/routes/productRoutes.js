@@ -4,9 +4,19 @@ import { authRequired } from '../middleware/auth.js';
 import { listPublic, listAdmin, create, update, remove } from '../controllers/productController.js';
 
 const router = Router();
+
 router.get('/', listPublic);
-router.get('/admin', /*authRequired,*/ listAdmin);
-router.post('/admin', /*authRequired,*/ body('title').notEmpty(), body('price').isNumeric(), create);
-router.put('/admin/:id', /*authRequired,*/ update);
+
+// 👇 Protege TODAS las admin
+router.get('/admin', authRequired, listAdmin);
+router.post(
+  '/admin',
+  authRequired,
+  body('title').notEmpty().withMessage('title requerido'),
+  body('price').isNumeric().withMessage('price debe ser número'),
+  create
+);
+router.put('/admin/:id', authRequired, update);
 router.delete('/admin/:id', authRequired, remove);
+
 export default router;

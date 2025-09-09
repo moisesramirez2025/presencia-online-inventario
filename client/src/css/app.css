@@ -1,0 +1,48 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr; /* Una columna central más grande */
+  gap: 20px;
+  width: 80%; /* Ajusta el ancho según tu preferencia */
+  border: 1px solid black;
+  padding: 20px;
+}
+
+.box {
+  background-color: lightblue;
+  border: 1px solid #333;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px; /* Altura fija para las cajas */
+}
+
+/* Estilos para el orden invertido */
+.reversed-order {
+  grid-template-areas: "box3 box2 box1"; /* Define el nuevo orden */
+}
+
+.reversed-order .box1 {
+  grid-area: box1;
+}
+
+.reversed-order .box2 {
+  grid-area: box2;
+}
+
+.reversed-order .box3 {
+  grid-area: box3;
+}
+
+button {
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+}
