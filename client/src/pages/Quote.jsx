@@ -19,16 +19,16 @@ export default function Quote() {
   const productId = params.get('productId');
   const productTitle = params.get('productTitle');
 
-  useEffect(() => {
-    if (productId && !productTitle) {
-      // Si tenemos ID pero no título, cargar info del producto
-      loadProductInfo();
-    }
-  }, [productId, productTitle]);
+ useEffect(() => {
+  if (productId) {
+    loadProductInfo();
+  }
+}, [productId]);
 
   const loadProductInfo = async () => {
     try {
       const res = await api.get(`/products/${productId}`);
+      console.log('Producto API response:', res);
       setProductInfo(res.data);
     } catch (error) {
       console.error('Error loading product info:', error);
@@ -74,19 +74,57 @@ export default function Quote() {
     <div className="container py-8 max-w-4xl">
       <h1 className="text-3xl font-bold mb-8 text-center">Solicitar Cotización</h1>
 
-      {displayProductTitle && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-          <h3 className="font-semibold text-blue-800 mb-2">Producto seleccionado:</h3>
-          <p className="text-blue-900">{displayProductTitle}</p>
-          {!productId && (
-            <p className="text-sm text-blue-600 mt-1">
-              <Link to="/productos" className="underline">Ver más productos</Link>
-            </p>
-          )}
-        </div>
-      )}
+      {(displayProductTitle || productInfo) && (
+  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+    <h3 className="font-semibold text-blue-800 mb-2">Producto seleccionado:</h3>
+
+    {/* Título del producto */}
+    <p className="text-blue-900">
+      {displayProductTitle || productInfo?.title}
+    </p>
+
+    {/* Negocio */}
+    {productInfo?.business?.name && (
+      <p className="text-blue-700 text-sm mt-1">
+        <span className="font-semibold">Negocio:</span> {productInfo.business.name}
+      </p>
+    )}
+
+
+    {productInfo?.business?.phone && (
+  <p className="text-blue-700 text-sm mt-1">
+    <span className="font-semibold">Contactar al vendedor por WhatsApp:</span>{' '}
+    <a
+      href={`https://wa.me/${productInfo.business.phone.replace(/\D/g, '')}?text=${encodeURIComponent(
+        `Hola, estoy interesado en el producto "${productInfo.title}" (ID: ${productInfo._id})`
+      )}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="underline text-green-700"
+    >
+      {productInfo.business.phone}
+    </a>
+  </p>
+)}
+
+
+
+
+
+
+
+    {!productId && (
+      <p className="text-sm text-blue-600 mt-1">
+        <Link to="/productos" className="underline">Ver más productos</Link>
+      </p>
+    )}
+  </div>
+)}
+
 
       <form onSubmit={submit} className="bg-white rounded-lg shadow-sm p-6">
+        <h1><b>Mercado de Precios</b></h1>
+        <h4>Compara las respuestas de diferentes negocios y elige la mejor oferta.</h4><br />
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium mb-2 text-gray-700">

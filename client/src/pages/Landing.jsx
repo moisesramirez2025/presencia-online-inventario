@@ -67,10 +67,7 @@ export default function Landing() {
             <div className="flex gap-4 justify-center">
               <Link to="/productos" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
                 Ver Catálogo
-              </Link>
-              <Link to="/cotizar" className="bg-white text-black hover:bg-gray-100 px-8 py-3 rounded-lg font-semibold transition-colors">
-                Solicitar Cotización
-              </Link>
+              </Link>-
             </div>
           </div>
         </div>
@@ -132,15 +129,15 @@ export default function Landing() {
       {/* Sección "Mi Negocio" */}
       <section className="bg-gray-100 py-16">
         <div className="container text-center">
-          <h2 className="text-3xl font-bold mb-4">¿Tienes un Negocio de Carpintería?</h2>
+          <h2 className="text-3xl font-bold mb-4">Convierte tu inventario en una vitrina digital.</h2>
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Únete a nuestra plataforma y muestra tus productos a miles de clientes potenciales
+            Únete a nuestra plataforma y muestra tus productos a clientes potenciales
           </p>
           <div className="flex gap-4 justify-center">
-            <Link to="/registro" className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
+            <Link to="/registro" className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors">
               Registrar Mi Negocio
             </Link>
-            <Link to="/login" className="border border-gray-300 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+            <Link to="/login" className="border border-blue-300 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors">
               Acceder a Mi Cuenta
             </Link>
           </div>
@@ -155,16 +152,16 @@ export default function Landing() {
             <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">🎨</span>
             </div>
-            <h3 className="font-semibold text-lg mb-2">Diseño Personalizado</h3>
-            <p className="text-gray-600">Muebles únicos diseñados específicamente para tus espacios y necesidades</p>
+            <h3 className="font-semibold text-lg mb-2">Variedad que Inspira</h3>
+            <p className="text-gray-600">Accede a catálogos únicos de fabricantes y tiendas independientes. Estilo, diseño y funcionalidad para todos los gustos.</p>
           </div>
           
           <div className="text-center">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">⭐</span>
             </div>
-            <h3 className="font-semibold text-lg mb-2">Calidad Premium</h3>
-            <p className="text-gray-600">Materiales de primera calidad y craftsmanship experto en cada pieza</p>
+            <h3 className="font-semibold text-lg mb-2">Calidad Local Garantizada</h3>
+            <p className="text-gray-600">Trabajamos con proveedores que priorizan materiales de calidad y experiencia en cada mueble.</p>
           </div>
           
           <div className="text-center">
@@ -172,7 +169,7 @@ export default function Landing() {
               <span className="text-2xl">🚚</span>
             </div>
             <h3 className="font-semibold text-lg mb-2">Entrega Puntual</h3>
-            <p className="text-gray-600">Cumplimos con los plazos de entrega acordados sin comprometer la calidad</p>
+            <p className="text-gray-600">Negocia directo con los creadores. Sin intermediarios, sin sorpresas. Solo muebles que llegan como esperas.</p>
           </div>
         </div>
       </section>

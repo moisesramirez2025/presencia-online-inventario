@@ -19,7 +19,7 @@ export const listPublic = async (req, res) => {
     };
 
     const products = await Product.find(filter)
-      .populate('business', 'name contactEmail') // Incluir info básica del negocio
+      .populate('business', 'name contactEmail phone') // Incluir info básica del negocio
       .sort({ createdAt: -1 });
 
     res.json({
@@ -35,6 +35,28 @@ export const listPublic = async (req, res) => {
     });
   }
 };
+
+
+
+
+export const getById = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id)
+      .populate('business', 'name contactEmail phone'); // 👈 Importante
+
+    if (!product) {
+      return res.status(404).json({ message: 'Producto no encontrado' });
+    }
+
+    res.json(product);
+  } catch (error) {
+    console.error('Error en getById:', error);
+    res.status(500).json({ message: 'Error al obtener el producto' });
+  }
+};
+
+
+
 
 /**
  * Obtener productos para administración (con restricción por negocio)

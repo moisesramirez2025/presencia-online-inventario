@@ -151,9 +151,6 @@ export default function InventoryView() {
               <Link to="/dashboard" className="text-blue-600 hover:underline">
                 Panel
               </Link>
-              <Link to="/ventas" className="text-blue-600 hover:underline">
-                Ventas
-              </Link>
               <button 
                 onClick={logout} 
                 className="btn border border-gray-300 rounded px-3 py-2 hover:bg-gray-50"

@@ -18,7 +18,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center py-4">
           {/* Logo */}
           <Link to="/" className="text-2xl font-bold text-gray-800">
-            Negocios Artesanales
+            RedMuebles
           </Link>
 
           {/* Desktop Menu */}
@@ -27,7 +27,7 @@ export default function Navbar() {
             <Link to="/productos" className="text-gray-600 hover:text-gray-900">Productos</Link>
             <Link to="/cotizar" className="text-gray-600 hover:text-gray-900">Cotizar</Link>
             
-            {token ? (
+         { /* {token ? (
               <div className="flex items-center space-x-4">
                 <Link to="/admin/dashboard" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
                   Mi Panel
@@ -43,7 +43,7 @@ export default function Navbar() {
                   Registrar Negocio
                 </Link>
               </div>
-            )}
+            )}*/}
           </div>
 
           {/* Mobile Menu Button */}

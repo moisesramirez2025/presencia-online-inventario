@@ -1,11 +1,15 @@
 import { Router } from 'express';
 import { body } from 'express-validator';
 import { authRequired } from '../middleware/auth.js';
-import { listPublic, listAdmin, create, update, remove } from '../controllers/productController.js';
+import { listPublic, listAdmin, create, update, remove, getById } from '../controllers/productController.js';
 
 const router = Router();
 
 router.get('/', listPublic);
+
+
+
+
 
 // 👇 Protege TODAS las admin
 router.get('/admin', authRequired, listAdmin);
@@ -18,5 +22,7 @@ router.post(
 );
 router.put('/admin/:id', authRequired, update);
 router.delete('/admin/:id', authRequired, remove);
+
+router.get('/:id', getById); // Obtener producto público por ID
 
 export default router;

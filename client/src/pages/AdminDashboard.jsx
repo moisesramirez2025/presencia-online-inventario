@@ -993,6 +993,14 @@ export default function AdminDashboard() {
         <h1 className="text-3xl font-bold text-gray-800">Panel de Administración</h1>
         <button
           onClick={() => {
+            navigate('/admin/inventario');
+          }}
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+        >
+          Inventario
+        </button>
+        <button
+          onClick={() => {
             localStorage.removeItem('token');
             navigate('/login');
           }}
@@ -1000,6 +1008,7 @@ export default function AdminDashboard() {
         >
           Cerrar Sesión
         </button>
+
       </div>
 
       {/* Navegación por pestañas */}
