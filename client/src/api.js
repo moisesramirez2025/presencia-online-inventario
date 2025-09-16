@@ -46,3 +46,26 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// En tu archivo de configuración de axios, agrega:
+api.interceptors.request.use((config) => {
+  console.log('🔄 Request to:', config.baseURL + config.url);
+  console.log('📋 Headers:', config.headers);
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => {
+    console.log('✅ Response from:', response.config.url, response.status);
+    return response;
+  },
+  (error) => {
+    console.error('❌ Error:', error.config?.url, error.response?.status);
+    console.error('📋 Error details:', error.response?.data);
+    return Promise.reject(error);
+  }
+);
