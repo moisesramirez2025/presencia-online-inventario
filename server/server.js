@@ -28,10 +28,25 @@ const allowedOrigins = [
   process.env.CLIENT_ORIGIN // Para producción
 ].filter(Boolean); // Filtra valores undefined
 
+// app.use(cors({
+//   origin: allowedOrigins,
+//   credentials: true
+// }));
 app.use(cors({
-  origin: allowedOrigins,
-  credentials: true
+  origin: [
+    import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173",
+    "https://sparkling-transformation-production-fecf.up.railway.app/"  // TU URL REAL EN RAILWAY
+  ],
+  credentials: true,  // IMPORTANTE
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
+
+// Maneja preflight requests
+app.options("*", cors());
+
+
+
 
 // 📊 Logging y parsing de JSON
 app.use(morgan('dev'));
