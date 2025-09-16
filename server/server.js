@@ -35,7 +35,7 @@ const allowedOrigins = [
 app.use(cors({
   origin: [
     process.env.VITE_FRONTEND_URL || "http://localhost:5173",
-    "https://sparkling-transformation-production-fecf.up.railway.app/"  // TU URL REAL EN RAILWAY
+    "https://sparkling-transformation-production-fecf.up.railway.app"  // TU URL REAL EN RAILWAY
   ],
   credentials: true,  // IMPORTANTE
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
