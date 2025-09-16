@@ -34,7 +34,7 @@ const allowedOrigins = [
 // }));
 app.use(cors({
   origin: [
-    import.meta.env.VITE_FRONTEND_URL || "http://localhost:5173",
+    process.env.VITE_FRONTEND_URL || "http://localhost:5173",
     "https://sparkling-transformation-production-fecf.up.railway.app/"  // TU URL REAL EN RAILWAY
   ],
   credentials: true,  // IMPORTANTE
